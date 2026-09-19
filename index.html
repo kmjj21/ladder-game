@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#7460db"><meta name="description" content="이름도 결과도 눌러보세요. 2~20명이 함께 즐기는 양방향 사다리 타기."><title>사다리 타기 · 오늘은 누가 걸릴까?</title><link rel="icon" href="./favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./src/style.css"></head>
+<body>
+<header class="topbar"><a class="brand" href="./"><span class="brand-icon">⇄</span> 사다리 타기<span class="brand-tag">LADDER CLUB</span></a><button id="sound" class="quiet" aria-pressed="true" aria-label="효과음 ON, 끄기"><span class="sound-icon" aria-hidden="true">🔊</span><span class="sound-label" aria-hidden="true">효과음 ON</span></button></header>
+<main><section class="hero"><span class="eyebrow">작은 선택, 즐거운 우연</span><h1>오늘은 누가 <span>걸릴까?</span><svg class="spark" width="40" height="44" viewBox="0 0 40 44" aria-hidden="true"><path d="M20 0L24 16 40 22 24 27 20 44 15 27 0 22 15 16Z" fill="#edbb55"/></svg></h1><p>이름 적고, 결과 적고, 두근두근 출발!</p></section>
+<section id="setup" class="panel"><div class="section-head"><h2>누구와 함께할까요?</h2><span class="pill">2–20명</span></div>
+<p class="sync-hint">참가자와 결과 개수는 자동으로 맞춰져요.</p><div class="edit-grid"><section class="editor" id="names-editor"><div class="label-line"><label for="names"><span class="step">1</span> 참가자</label><span id="name-count"></span></div><p class="hint">줄바꿈이나 쉼표로 한 번에 붙여넣으세요.</p><textarea id="names" aria-describedby="validation" spellcheck="false" rows="8" placeholder="민수, 영희, 철수"></textarea></section><section class="editor" id="results-editor"><div class="label-line"><label for="results"><span class="step">2</span> 결과</label><span id="result-count"></span></div><p class="hint">같은 결과를 여러 번 적어도 좋아요.</p><textarea id="results" aria-describedby="validation" spellcheck="false" rows="8" placeholder="당번, 통과, 통과"></textarea></section></div>
+<div class="setup-footer"><p id="validation" role="status"></p><button id="create" class="primary">사다리 시작 <span>→</span></button></div><p id="storage-note" class="hint">자동 저장됨</p></section>
+<section id="game" class="panel" hidden>
+<div class="game-toolbar"><div class="direction-mode" role="group" aria-label="출발 방향"><button id="mode-forward" aria-pressed="true">사람 → 결과</button><button id="mode-reverse" aria-pressed="false">결과 → 사람</button></div><span id="progress" class="pill"></span><button id="edit" class="quiet">입력 수정</button></div>
+
+<div id="play-area"><div class="board-caption"><strong id="direction-hint">이름을 눌러 출발 ↓</strong><span id="scroll-hint">↔ 옆으로 밀어보세요</span></div><div id="ladder-scroll" tabindex="0" aria-label="사다리 영역, 좌우로 스크롤할 수 있습니다"><div id="ladder-board"><div id="top-labels" class="labels"></div><svg id="ladder" role="img" aria-label="무작위 사다리"></svg><div id="bottom-labels" class="labels"></div></div></div><div class="board-caption bottom-caption"><strong id="bottom-hint">도착하면 결과 공개</strong><span id="scroll-position"></span></div></div>
+<div id="announcement" tabindex="-1" class="announcement" role="status" aria-live="polite" aria-atomic="true">이름도, 결과도 눌러보세요!</div>
+<section id="summary" hidden aria-labelledby="summary-title"><div class="section-head"><h3 id="summary-title" tabindex="-1">짜잔! 오늘의 결과</h3><button id="back">← 사다리로 돌아가기</button></div><div id="summary-list"></div></section>
+<div class="controls"><button id="shuffle">🔀 다시 섞기</button><button id="all">전체 결과 보기</button><button id="new" class="quiet">새 게임</button></div></section>
+<div class="features"><span><b>↕</b> 양쪽에서 출발</span><span><b>✳</b> 매번 새로운 사다리</span><span><b>♡</b> 가입 없이 가볍게</span></div></main>
+<footer>어떤 결과든, 즐겁게 함께해요.<span>LADDER CLUB · 오늘의 작은 운</span></footer>
+<dialog id="choice" aria-labelledby="choice-title" aria-describedby="choice-description"><h2 id="choice-title"></h2><p id="choice-description"></p><div id="choice-actions"></div><button id="choice-cancel" class="quiet">취소</button></dialog>
+<script type="module" src="./src/app.js"></script></body></html>
+
+
+
+

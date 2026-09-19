@@ -1,0 +1,19 @@
+{
+  "name": "ladder-game",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "start": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "lint": "node scripts/lint.mjs",
+    "dev:lan": "node scripts/serve.mjs --lan"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
+
+
