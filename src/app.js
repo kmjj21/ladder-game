@@ -7,6 +7,7 @@ import { choose } from './dialog.js';
 import { makeFollower } from './follow.js';
 import { createLayout, createRhythm } from './layout.js';
 import { resultLabel, resultVisible } from './reveal.js';
+import { createExportControls } from './export/controls.js';
 
 const $ = id => document.getElementById(id);
 const cached = read(), reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -30,6 +31,7 @@ function validate() {
   persist(); return !error;
 }
 const inputs = createPairedEditors(initialInputs, validate, choose);
+const media = createExportControls(() => sound);
 function syncSound() {
   $('sound').querySelector('.sound-icon').textContent = sound ? '🔊' : '🔇';
   $('sound').querySelector('.sound-label').textContent = sound ? '효과음 ON' : '효과음 OFF';
@@ -76,6 +78,7 @@ function setBusy(value) {
   busy = value; $('game').querySelectorAll('button').forEach(button => { button.disabled = value; });
   $('ladder-board').setAttribute('aria-busy', String(value)); $('game').classList.toggle('is-running', value);
   updateLabels();
+  media.sync();
   if (!value && pendingResize) { pendingResize = false; resizeScene(); }
 }
 function scrollInfo() {
@@ -112,6 +115,7 @@ new ResizeObserver(resizeScene).observe($('ladder-scroll'));
 window.addEventListener('resize', resizeScene);
 function showBoard() { $('play-area').hidden = false; $('summary').hidden = true; $('all').hidden = false; }
 function draw() {
+  media.clear();
   revealed.clear(); lastRoute = null; layout = null; mode = 'forward'; showBoard(); $('summary-list').replaceChildren();
   for (const [id, labels, reverse] of [['top-labels', names, false], ['bottom-labels', results, true]]) {
     $(id).replaceChildren();
@@ -141,6 +145,7 @@ function celebrate(button) {
 }
 async function run(index, reverse) {
   if (busy || prompting || reverse !== (mode === 'reverse')) return;
+  media.clear();
   setBusy(true); if (sound) unlock();
   const route = trace(ladder, index, reverse), points = layout.points(route.points), svg = $('ladder');
   lastRoute = null; svg.querySelectorAll('.active-path, .path-head, .traveler').forEach(el => el.remove());
@@ -172,6 +177,7 @@ async function run(index, reverse) {
     const cheers = document.createElement('strong'), message = document.createElement('span');
     cheers.textContent = reverse ? '찾았다!' : '짜잔!'; message.textContent = (reverse ? results[end] + ' → ' + names[start] : names[start] + ' → ' + results[end]) + '!';
     $('announcement').replaceChildren(cheers,message); $('announcement').classList.add('arrived'); tone('finish',sound);
+    media.set({ladder,rhythm,names,results,index,reverse});
     destination.scrollIntoView({block:'nearest',inline:'nearest',behavior:reduced()?'instant':'smooth'});
   } catch { $('announcement').textContent = '잠깐 멈췄어요. 다시 눌러 출발해보세요.'; }
   finally { setBusy(false); source.focus({preventScroll:true}); }
@@ -207,6 +213,7 @@ $('all').onclick = () => {
 $('back').onclick = () => { showBoard(); resizeScene(); $('announcement').textContent = '같은 사다리에서 다시 출발해보세요.'; focusStart(); };
 function edit() {
   if (busy || prompting) return;
+  media.clear();
   $('game').hidden = true; $('setup').hidden = false; document.body.classList.remove('playing'); validate(); inputs.focus();
 }
 $('edit').onclick = edit;

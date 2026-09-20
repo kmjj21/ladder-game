@@ -169,3 +169,14 @@ dialog p{font-size:14px;line-height:1.7;color:#7b6d88}
 #sound{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
 .sound-icon{font-size:18px}
 @media(max-width:699px){#sound{width:44px;height:44px;padding:0}.sound-label{display:none}}
+
+.export-controls{text-align:center;margin:8px 0 14px}
+.export-buttons{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.export-controls button{min-height:44px;padding:9px 14px;font-size:12px}
+#export-status{font-size:12px;color:#776887;line-height:1.6;margin:8px 0}
+#export-status:empty{display:none}
+#export-ready{font-size:12px;color:#776887;line-height:1.7}
+#export-ready a{color:#6b49ba;display:inline-block;padding:10px;cursor:pointer}
+#export-preview{max-width:900px;margin:8px auto}
+#export-preview summary{cursor:pointer;padding:8px}
+#export-preview img,#export-preview video{display:block;max-width:100%;max-height:65vh;margin:12px auto;border-radius:12px}

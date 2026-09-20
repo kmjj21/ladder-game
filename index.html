@@ -11,6 +11,12 @@
 
 <div id="play-area"><div class="board-caption"><strong id="direction-hint">이름을 눌러 출발 ↓</strong><span id="scroll-hint">↔ 옆으로 밀어보세요</span></div><div id="ladder-scroll" tabindex="0" aria-label="사다리 영역, 좌우로 스크롤할 수 있습니다"><div id="ladder-board"><div id="top-labels" class="labels"></div><svg id="ladder" role="img" aria-label="무작위 사다리"></svg><div id="bottom-labels" class="labels"></div></div></div><div class="board-caption bottom-caption"><strong id="bottom-hint">도착하면 결과 공개</strong><span id="scroll-position"></span></div></div>
 <div id="announcement" tabindex="-1" class="announcement" role="status" aria-live="polite" aria-atomic="true">이름도, 결과도 눌러보세요!</div>
+<section id="export-controls" class="export-controls" aria-label="방금 결과 저장" hidden>
+<div class="export-buttons"><button id="export-image">📸 결과 이미지</button><button id="export-video">🎬 사다리 영상</button></div>
+<p id="export-status" role="status" aria-live="polite"></p>
+<div id="export-ready" hidden><a id="export-download">파일 다시 저장</a><button id="export-share" hidden>공유 / 파일에 저장</button>
+<details id="export-preview"><summary>미리보기 · 저장 도움말</summary><p>저장이 안 되면 미리보기를 열어 브라우저의 공유 또는 파일 저장 메뉴를 이용하세요.</p><a id="export-open" target="_blank" rel="noopener">미리보기 열기</a><img id="export-image-preview" alt="생성된 사다리 결과 이미지" hidden><video id="export-video-preview" controls playsinline preload="metadata" hidden></video></details><button id="export-dismiss" class="quiet">파일 닫기</button></div>
+</section>
 <section id="summary" hidden aria-labelledby="summary-title"><div class="section-head"><h3 id="summary-title" tabindex="-1">짜잔! 오늘의 결과</h3><button id="back">← 사다리로 돌아가기</button></div><div id="summary-list"></div></section>
 <div class="controls"><button id="shuffle">🔀 다시 섞기</button><button id="all">전체 결과 보기</button><button id="new" class="quiet">새 게임</button></div></section>
 <div class="features"><span><b>↕</b> 양쪽에서 출발</span><span><b>✳</b> 매번 새로운 사다리</span><span><b>♡</b> 가입 없이 가볍게</span></div></main>
