@@ -1,4 +1,4 @@
-import { playTone } from '../sound.js';
+import { playTone, resumeAudioContext } from '../sound.js';
 
 // Called synchronously by the save gesture; never requests microphone access.
 export function prepareAudio(enabled) {
@@ -19,7 +19,7 @@ export function prepareAudio(enabled) {
     const ready = new Promise(resolve => {
       finishReady = value => { clearTimeout(timer); resolve(value); };
       timer = setTimeout(() => finishReady(false), 1500);
-      context.resume().then(() => finishReady(!closed && context.state === 'running')).catch(() => finishReady(false));
+      resumeAudioContext(context).then(ready => finishReady(!closed && ready)).catch(() => finishReady(false));
     });
     return { ready, stream: destination.stream, play(kind){if(context.state==='running') playTone(context,bus,kind);}, close };
   } catch { return { ready: Promise.resolve(false), close }; }

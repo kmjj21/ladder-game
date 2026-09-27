@@ -67,8 +67,7 @@ export function createRenderer(snapshot, kind = 'image') {
         box(ctx, -cardWidth / 2, -h / 2, cardWidth, h, active ? destination && frame.arrived ? '#fff1cc' : '#eee8fa' : '#fff', active ? '#a18ac4' : '#e3dcec');
         ctx.fillStyle = '#8b8199'; ctx.font = `10px ${FONT}`; ctx.fillText(String(i + 1), 0, -h / 2 + 12);
         ctx.font = `14px ${FONT}`; ctx.fillStyle = active ? '#573b79' : '#514863';
-        // The recorded forward reveal happens at arrival; all slots remain in frame.
-        const displayed = destination && !frame.arrived && !snapshot.reverse ? ['?'] : lines[i];
+        const displayed = lines[i];
         displayed.forEach((part, j) => ctx.fillText(part, 0, 7 + (j - (displayed.length - 1) / 2) * 18)); ctx.restore();
       });
     }

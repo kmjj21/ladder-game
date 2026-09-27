@@ -44,7 +44,10 @@ test('20명 렌더러 전체 텍스트·해상도 상한·캔버스 정리',()=>
     const ladder=generateLadder(20),names=Array.from({length:20},(_,i)=>`이름${i}긴한글이름`),results=Array.from({length:20},(_,i)=>`결과${i}당번`);
     const snapshot=snapshotResult({ladder,rhythm:createRhythm(ladder),names,results,index:19,reverse:false});
     for(const kind of ['image','video']) {
-      const renderer=createRenderer(snapshot,kind);renderer.draw();
+      const renderer=createRenderer(snapshot,kind);texts.length=0;renderer.draw(0);
+      assert.ok(texts.join('').includes('결과19당번'),'영상 출발 전부터 모든 결과 슬롯 공개');
+      assert.ok(!texts.includes('?'));
+      renderer.draw();
       assert.ok(renderer.canvas.width>=1280);assert.ok(renderer.canvas.width*renderer.canvas.height<=6000000);
       assert.ok(texts.join('').includes('이름19긴한글이름'));assert.ok(texts.join('').includes('결과19당번'));
       renderer.dispose();assert.equal(renderer.canvas.width,1);

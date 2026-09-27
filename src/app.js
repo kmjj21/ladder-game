@@ -1,12 +1,12 @@
-import { COLUMN, generateLadder, trace, pathData } from './ladder.js';
+import { COLUMN, trace, pathData } from './ladder.js';
 import { animate } from './animation.js';
-import { unlock, tone } from './sound.js';
+import { unlock, tone, setSoundEnabled } from './sound.js';
 import { read, save } from './storage.js';
 import { createPairedEditors } from './paired-editor.js';
 import { choose } from './dialog.js';
 import { makeFollower } from './follow.js';
-import { createLayout, createRhythm } from './layout.js';
-import { resultLabel, resultVisible } from './reveal.js';
+import { createLayout } from './layout.js';
+import { createGame, restoreGame, slotLabels } from './game-state.js';
 import { createExportControls } from './export/controls.js';
 
 const $ = id => document.getElementById(id);
@@ -17,10 +17,11 @@ const initialInputs = {
   results: cached.results ?? '간식 사기\n통과\n통과\n오늘의 당번\n통과\n통과\n통과\n면제'
 };
 let sound = cached.sound !== false, ladder, rhythm, layout, names = [], results = [], busy = false, prompting = false;
-let mode = 'forward', lastRoute = null, pendingResize = false;
+let activeGame = null, lastRoute = null, pendingResize = false;
 const revealed = new Map();
 function persist() {
-  $('storage-note').textContent = save({ ...inputs.serialize(), sound }) ? '✓ 이 기기에 자동 저장됨' : '자동 저장이 안 돼요. 입력 내용을 따로 복사해주세요.';
+  const game = activeGame ? { ...activeGame, revealed: [...revealed], lastRoute } : null;
+  $('storage-note').textContent = save({ ...inputs.serialize(), sound, game }) ? '✓ 이 기기에 자동 저장됨' : '자동 저장이 안 돼요. 입력 내용을 따로 복사해주세요.';
 }
 function validate() {
   const { names: a, results: b } = inputs.state;
@@ -33,13 +34,17 @@ function validate() {
 const inputs = createPairedEditors(initialInputs, validate, choose);
 const media = createExportControls(() => sound);
 function syncSound() {
-  $('sound').querySelector('.sound-icon').textContent = sound ? '🔊' : '🔇';
-  $('sound').querySelector('.sound-label').textContent = sound ? '효과음 ON' : '효과음 OFF';
+  $('sound').querySelector('.sound-wave').style.display = sound ? '' : 'none';
+  $('sound').querySelector('.sound-slash').style.display = sound ? 'none' : '';
   $('sound').setAttribute('aria-pressed', String(sound));
-  $('sound').setAttribute('aria-label', sound ? '효과음 ON, 끄기' : '효과음 OFF, 켜기');
+  $('sound').setAttribute('aria-label', sound ? '효과음 끄기' : '효과음 켜기');
   $('sound').title = sound ? '효과음 끄기' : '효과음 켜기';
 }
-$('sound').onclick = () => { sound = !sound; if (sound) unlock(); syncSound(); persist(); };
+$('sound').onclick = () => { sound = !sound; setSoundEnabled(sound); if (sound) unlock('tap'); syncSound(); persist(); };
+// No autoplay on load; the first interaction (and a gesture after interruption) resumes audio.
+for (const event of ['pointerdown', 'touchend', 'click']) document.addEventListener(event, e => {
+  if (sound && !e.target.closest('#sound')) unlock();
+}, { capture: true, passive: true });
 const svgElement = (tag, attributes) => {
   const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
   for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
@@ -56,21 +61,15 @@ function makeMarker() {
 }
 function updateLabels() {
   $('progress').textContent = '확인 ' + revealed.size + ' / ' + names.length;
-  $('mode-forward').setAttribute('aria-pressed', String(mode === 'forward'));
-  $('mode-reverse').setAttribute('aria-pressed', String(mode === 'reverse'));
-  $('direction-hint').textContent = mode === 'forward' ? '이름을 눌러 출발 ↓' : '아래 결과를 눌러 출발 ↑';
-  $('bottom-hint').textContent = mode === 'forward' ? '도착하면 결과 공개' : '어떤 결과의 주인공을 찾을까요?';
   for (const [id, labels, reverse] of [['top-labels', names, false], ['bottom-labels', results, true]]) {
     [...$(id).children].forEach((button, index) => {
       const known = reverse ? [...revealed.values()].includes(index) : revealed.has(index);
-      const visible = !reverse || resultVisible(mode, revealed, index);
-      const text = reverse ? resultLabel(mode, revealed, index, results) : labels[index];
-      const active = reverse === (mode === 'reverse');
+      const text = labels[index];
       button.querySelector('span').textContent = text; button.querySelector('small').textContent = known ? '✓' : '';
-      button.classList.toggle('checked', known); button.classList.toggle('mystery', !visible); button.classList.toggle('source-card', active);
-      button.disabled = busy || !active;
-      button.title = visible ? text : '도착하면 공개돼요';
-      button.setAttribute('aria-label', (index + 1) + '번 ' + (visible ? text : '미공개 결과') + (known ? ', 확인됨' : '') + (active ? reverse ? ', 이름 찾기' : ', 결과 찾기' : ''));
+      button.classList.toggle('checked', known); button.classList.add('source-card');
+      button.disabled = busy;
+      button.title = text;
+      button.setAttribute('aria-label', (index + 1) + '번 ' + text + (known ? ', 확인됨' : '') + (reverse ? ', 이름 찾기' : ', 결과 찾기'));
     });
   }
 }
@@ -114,9 +113,10 @@ function resizeScene() {
 new ResizeObserver(resizeScene).observe($('ladder-scroll'));
 window.addEventListener('resize', resizeScene);
 function showBoard() { $('play-area').hidden = false; $('summary').hidden = true; $('all').hidden = false; }
-function draw() {
+function draw(reset = true) {
   media.clear();
-  revealed.clear(); lastRoute = null; layout = null; mode = 'forward'; showBoard(); $('summary-list').replaceChildren();
+  if (reset) { revealed.clear(); lastRoute = null; }
+  layout = null; showBoard(); $('summary-list').replaceChildren();
   for (const [id, labels, reverse] of [['top-labels', names, false], ['bottom-labels', results, true]]) {
     $(id).replaceChildren();
     labels.forEach((_, index) => {
@@ -124,16 +124,9 @@ function draw() {
       small.setAttribute('aria-hidden', 'true'); button.append(text, small); button.onclick = () => run(index, reverse); $(id).append(button);
     });
   }
-  $('announcement').textContent = '누구부터 출발할까요?'; $('announcement').classList.remove('arrived');
+  $('announcement').textContent = '이름이나 결과를 눌러보세요!'; $('announcement').classList.remove('arrived');
   updateLabels(); resizeScene(); $('ladder-scroll').scrollLeft = 0;
 }
-function setMode(next) {
-  if (busy || prompting) return;
-  mode = next; updateLabels();
-  $('announcement').classList.remove('arrived');
-  $('announcement').textContent = mode === 'forward' ? '이름을 누르면, 도착한 결과만 공개돼요.' : '결과를 누르면, 누구의 결과인지 찾아줘요.';
-}
-$('mode-forward').onclick = () => setMode('forward'); $('mode-reverse').onclick = () => setMode('reverse');
 function celebrate(button) {
   button.classList.add('landed');
   if (!reduced()) for (let i = 0; i < 8; i++) {
@@ -144,9 +137,9 @@ function celebrate(button) {
   setTimeout(() => button.classList.remove('landed'), 900);
 }
 async function run(index, reverse) {
-  if (busy || prompting || reverse !== (mode === 'reverse')) return;
+  if (busy || prompting) return;
   media.clear();
-  setBusy(true); if (sound) unlock();
+  setBusy(true); if (sound) unlock('start');
   const route = trace(ladder, index, reverse), points = layout.points(route.points), svg = $('ladder');
   lastRoute = null; svg.querySelectorAll('.active-path, .path-head, .traveler').forEach(el => el.remove());
   $('game').querySelectorAll('.selected, .landed').forEach(el => el.classList.remove('selected', 'landed'));
@@ -156,7 +149,7 @@ async function run(index, reverse) {
   path.style.visibility = head.style.visibility = 'hidden'; marker.setAttribute('transform','translate(' + points[0].x + ' ' + points[0].y + ')');
   svg.append(path,head,marker);
   const follow = makeFollower($('ladder-scroll'),svg,points[0],reduced());
-  let lastTone = performance.now(), previousDirection = 0, tilt = 0; tone('start',sound);
+  let lastTone = performance.now(), previousDirection = 0, tilt = 0;
   try {
     await animate(points,(point,progress,total,scale,segmentStart) => {
       const distance = total * progress;
@@ -178,12 +171,16 @@ async function run(index, reverse) {
     cheers.textContent = reverse ? '찾았다!' : '짜잔!'; message.textContent = (reverse ? results[end] + ' → ' + names[start] : names[start] + ' → ' + results[end]) + '!';
     $('announcement').replaceChildren(cheers,message); $('announcement').classList.add('arrived'); tone('finish',sound);
     media.set({ladder,rhythm,names,results,index,reverse});
+    persist();
     destination.scrollIntoView({block:'nearest',inline:'nearest',behavior:reduced()?'instant':'smooth'});
   } catch { $('announcement').textContent = '잠깐 멈췄어요. 다시 눌러 출발해보세요.'; }
   finally { setBusy(false); source.focus({preventScroll:true}); }
 }
-function newLadder() { ladder = generateLadder(names.length); rhythm = createRhythm(ladder); draw(); }
-function focusStart() { $(mode === 'forward' ? 'top-labels' : 'bottom-labels').firstElementChild.focus({preventScroll:true}); }
+function newLadder() {
+  activeGame = createGame(names, inputs.state.results.map(s => s.trim()));
+  ({ ladder, rhythm } = activeGame); results = slotLabels(activeGame); draw(); persist();
+}
+function focusStart() { $('top-labels').firstElementChild.focus({preventScroll:true}); }
 $('create').onclick = () => {
   if (!validate()) return; if (sound) unlock();
   names = inputs.state.names.map(s => s.trim()); results = inputs.state.results.map(s => s.trim());
@@ -193,7 +190,7 @@ $('create').onclick = () => {
 $('shuffle').onclick = async () => {
   if (busy || prompting) return;
   if (revealed.size) {
-    prompting = true; const answer = await choose('다시 섞을까요?','사다리를 다시 섞으면 결과가 바뀌어요.',[{label:'다시 섞기',value:'shuffle'}]);
+    prompting = true; const answer = await choose('다시 섞을까요?','다시 섞으면 연결 결과가 바뀌어요. 새로 섞을까요?',[{label:'다시 섞기',value:'shuffle'}]);
     prompting = false; if (answer !== 'shuffle') return;
   }
   newLadder(); window.scrollTo({top:0,behavior:'instant'}); focusStart();
@@ -206,7 +203,7 @@ $('all').onclick = () => {
     person.textContent = (start+1)+'. '+name; arrow.textContent = '→'; arrow.className = 'result-arrow'; result.textContent = results[end];
     item.append(person,arrow,result); $('summary-list').append(item);
   });
-  updateLabels(); $('summary').hidden = false; $('play-area').hidden = true; $('all').hidden = true;
+  updateLabels(); persist(); $('summary').hidden = false; $('play-area').hidden = true; $('all').hidden = true;
   $('announcement').textContent = '오늘의 주인공을 모두 찾았어요.'; $('announcement').classList.remove('arrived');
   $('summary-title').focus(); window.scrollTo({top:0,behavior:'instant'});
 };
@@ -214,6 +211,7 @@ $('back').onclick = () => { showBoard(); resizeScene(); $('announcement').textCo
 function edit() {
   if (busy || prompting) return;
   media.clear();
+  activeGame = null;
   $('game').hidden = true; $('setup').hidden = false; document.body.classList.remove('playing'); validate(); inputs.focus();
 }
 $('edit').onclick = edit;
@@ -225,5 +223,19 @@ $('new').onclick = async () => {
   if (answer === 'keep') { newLadder(); window.scrollTo({top:0,behavior:'instant'}); focusStart(); }
   if (answer === 'clear') { inputs.clear(); edit(); }
 };
-syncSound(); validate();
+setSoundEnabled(sound); syncSound();
+const restored = restoreGame(cached.game, inputs.state.names.map(s => s.trim()), inputs.state.results.map(s => s.trim()));
+if (restored) {
+  activeGame = restored; ({ ladder, rhythm, names, lastRoute } = restored); results = slotLabels(restored);
+  for (const [start, end] of restored.revealed) revealed.set(start, end);
+  $('setup').hidden = true; $('game').hidden = false; document.body.classList.add('playing'); draw(false);
+  if (lastRoute) {
+    const { index, reverse } = lastRoute, end = trace(ladder, index, reverse).end;
+    $('announcement').textContent = reverse ? '찾았다! ' + results[index] + ' → ' + names[end] + '!' : '짜잔! ' + names[index] + ' → ' + results[end] + '!';
+    $('announcement').classList.add('arrived'); media.set({ladder,rhythm,names,results,index,reverse});
+    $(reverse ? 'bottom-labels' : 'top-labels').children[index].classList.add('selected');
+    $(reverse ? 'top-labels' : 'bottom-labels').children[end].classList.add('selected');
+  }
+}
+validate();
 

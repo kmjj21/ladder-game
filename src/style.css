@@ -105,9 +105,6 @@ dialog p{font-size:14px;line-height:1.7;color:#7b6d88}
 .playing footer{padding:12px;margin:16px 0 0}
 .playing footer span{display:none}
 .game-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:8px;min-height:44px}
-.direction-mode{display:inline-flex;background:#eeebf6;border:1px solid #e4deef;border-radius:12px;padding:3px;gap:3px}
-.direction-mode button{min-height:38px;border:0;background:transparent;border-radius:9px;padding:8px 18px;font-size:13px;color:#776887}
-.direction-mode button[aria-pressed=true]{background:white;color:#6b49ba;box-shadow:0 2px 5px #3320440b}
 .game-toolbar .pill{margin-left:auto;font-size:12px;color:#786887}
 .game-toolbar #edit{padding:8px 10px}
 .board-caption{padding:5px 2px 8px;font-size:11px;min-height:25px}
@@ -144,7 +141,6 @@ dialog p{font-size:14px;line-height:1.7;color:#7b6d88}
   .playing .hero{margin:0 0 12px}.playing .hero h1{font-size:23px}
   .playing .panel{padding:12px 10px}
   .game-toolbar{gap:5px;flex-wrap:wrap;margin-bottom:4px}
-  .direction-mode{gap:0}.direction-mode button{padding:8px 10px;font-size:12px;min-height:44px}
   .game-toolbar .pill{font-size:10px;padding:5px 7px}
   .game-toolbar #edit{min-height:44px;font-size:11px;padding:6px}
   .labels button{height:64px;min-height:64px;font-size:13px;padding:5px}
@@ -166,9 +162,6 @@ dialog p{font-size:14px;line-height:1.7;color:#7b6d88}
 @keyframes sync-pulse{from{opacity:.7}to{opacity:1}}
 
 .playing .topbar{position:sticky;top:0;z-index:20;background:#f8f7fcf5}
-#sound{display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
-.sound-icon{font-size:18px}
-@media(max-width:699px){#sound{width:44px;height:44px;padding:0}.sound-label{display:none}}
 
 .export-controls{text-align:center;margin:8px 0 14px}
 .export-buttons{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
@@ -180,3 +173,12 @@ dialog p{font-size:14px;line-height:1.7;color:#7b6d88}
 #export-preview{max-width:900px;margin:8px auto}
 #export-preview summary{cursor:pointer;padding:8px}
 #export-preview img,#export-preview video{display:block;max-width:100%;max-height:65vh;margin:12px auto;border-radius:12px}
+
+/* Unified bidirectional play: both endpoint rows are always available. */
+#direction-hint{font-size:12px;font-weight:600;color:#6b567f;flex:1}
+#sound{display:inline-grid;place-items:center;width:40px;height:40px;min-height:40px;padding:0;border-radius:50%;border:1px solid #e3ddec;background:#f1edfa;color:#7460bc}
+#sound[aria-pressed=false]{color:#948b9d;background:#f8f6fa}
+#sound:hover{background:#e9e2f8}
+@media(max-width:699px){#direction-hint{font-size:11px}.game-toolbar{flex-wrap:nowrap;gap:4px}.playing .hero{margin-bottom:12px}}
+
+.share-primary{border-radius:999px;min-height:44px;color:#6550bf;font-weight:700}#share-choice{width:min(360px,calc(100% - 32px))}#share-choice>button{display:block;width:100%;min-height:48px;margin-top:12px;text-align:left}#share-close{min-width:44px;min-height:44px}#share-choice h2{margin:0;font-size:18px}@media(max-width:600px){#share-choice{margin:auto auto 0;width:100%;max-width:100%;border-radius:24px 24px 0 0;padding-bottom:calc(24px + env(safe-area-inset-bottom))}}
