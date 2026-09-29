@@ -13,8 +13,8 @@ const $ = id => document.getElementById(id);
 const cached = read(), reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const initialInputs = {
   ...cached,
-  names: cached.names ?? '민수\n영희\n지영\n준호\n수빈\n지우\n현우\n서연',
-  results: cached.results ?? '간식 사기\n통과\n통과\n오늘의 당번\n통과\n통과\n통과\n면제'
+  names: cached.names ?? ['', ''],
+  results: cached.results ?? ['', '']
 };
 let sound = cached.sound !== false, ladder, rhythm, layout, names = [], results = [], busy = false, prompting = false;
 let activeGame = null, lastRoute = null, pendingResize = false;
@@ -217,10 +217,9 @@ function edit() {
 $('edit').onclick = edit;
 $('new').onclick = async () => {
   if (busy || prompting) return; prompting = true;
-  const answer = await choose('새 게임을 시작할까요?','이번에는 어떻게 시작할까요?',[
-    {label:'이름·결과 유지하고 새 사다리',value:'keep'},{label:'모두 지우고 새로 시작',value:'clear'}]);
+  const answer = await choose('새 게임을 시작할까요?','입력한 이름과 결과를 지우고 빈 2칸씩으로 시작해요.',[
+    {label:'모두 지우고 새로 시작',value:'clear'}]);
   prompting = false;
-  if (answer === 'keep') { newLadder(); window.scrollTo({top:0,behavior:'instant'}); focusStart(); }
   if (answer === 'clear') { inputs.clear(); edit(); }
 };
 setSoundEnabled(sound); syncSound();
