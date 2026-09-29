@@ -30,7 +30,7 @@ export function createPairedEditors(saved, onChange, choose, makeEditor = create
     state=plan.state; drafts[side]=null;
     editors[side].set(state[side],{keepFocus:detail.kind==='edit',raw:detail.raw,flash:changedCount});
     // Do not overwrite an unrelated over-limit draft: it remains editable until fixed.
-    if(drafts[other]===null) editors[other].set(state[other],{showBlanks:changedCount,flash:changedCount});
+    if(changedCount && drafts[other]===null) editors[other].set(state[other],{showBlanks:true,flash:true});
     onChange();
     if(['delete','add','paste'].includes(detail.kind)) editors[side].focus(detail.index||0);
   }

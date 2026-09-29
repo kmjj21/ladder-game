@@ -18,7 +18,9 @@ export function createEditor(id, label, onChange) {
       const number=document.createElement('span'); number.textContent=index+1;
       const input=document.createElement('input'); input.type='text'; input.value=value; input.autocomplete='off'; input.placeholder=id==='names'?'이름을 입력하세요':'결과를 입력하세요'; input.setAttribute('aria-label',label+' '+(index+1));
       const submit=()=>{ const next=[...values]; next[index]=input.value; onChange(next,{kind:'edit',index}); };
-      input.oninput=event=>{ if(!event.isComposing) submit(); }; input.oncompositionend=submit;
+      // Keep the model current even before an IME sends compositionend.
+      // set(..., {keepFocus:true}) preserves this input and its composition.
+      input.oninput=submit; input.oncompositionend=submit; input.onchange=submit;
       input.onpaste=event=>{
         const text=event.clipboardData?.getData('text');
         if(!text || !/[\r\n,，]/.test(text)) return;
@@ -42,8 +44,14 @@ export function createEditor(id, label, onChange) {
   }
   function setMode(next) { mode=next; if(mode==='bulk' && draft===null) textarea.value=values.join('\n'); syncMode(); focus(); }
   function focus(index=0) { (mode==='bulk'?textarea:rows.querySelectorAll('input')[Math.min(index,values.length-1)]||add).focus(); }
-  const submitBulk=()=>onChange(parseList(textarea.value),{kind:'bulk',raw:textarea.value});
-  textarea.oninput=event=>{if(!event.isComposing) submitBulk();}; textarea.oncompositionend=submitBulk;
+  const submitBulk=(event={})=>{
+    const next=parseList(textarea.value);
+    // An unfinished composition may temporarily empty a line. Save its text,
+    // but defer destructive count synchronization until composition ends.
+    if(event.isComposing) while(next.length<values.length) next.push('');
+    onChange(next,{kind:'bulk',raw:textarea.value});
+  };
+  textarea.oninput=submitBulk; textarea.oncompositionend=submitBulk; textarea.onchange=submitBulk;
   bulkButton.onclick=()=>setMode('bulk'); rowButton.onclick=()=>setMode('rows');
   add.onclick=()=>onChange([...values,''],{kind:'add',index:values.length});
   return {
