@@ -36,19 +36,22 @@ function face(ctx, x, y, rotation, scale) {
 export function createRenderer(snapshot, kind = 'image') {
   const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('canvas');
-  const width = Math.max(1280, snapshot.boardWidth + 64), cardWidth = snapshot.column - 8;
+  const gif = kind === 'gif';
+  const width = Math.max(gif ? 640 : 1280, snapshot.boardWidth + 64), cardWidth = snapshot.column - 8;
   ctx.font = `14px ${FONT}`;
   const nameLines = snapshot.names.map(text => wrapText(ctx, text, cardWidth - 14));
   const resultLines = snapshot.results.map(text => wrapText(ctx, text, cardWidth - 14));
   const topHeight = Math.max(66, ...nameLines.map(lines => lines.length * 18 + 28));
   const bottomHeight = Math.max(66, ...resultLines.map(lines => lines.length * 18 + 28));
-  ctx.font = `bold 24px ${FONT}`;
+  const messageSize = gif ? Math.max(28, Math.round(width * .035)) : 24;
+  const messageLineHeight = gif ? Math.ceil(messageSize * 1.3) : 32;
+  ctx.font = `bold ${messageSize}px ${FONT}`;
   const messageLines = wrapText(ctx, snapshot.message, width - 120);
   const boardY = 116 + topHeight, bottomY = boardY + snapshot.boardHeight;
   const footerY = bottomY + bottomHeight + 26;
-  const height = Math.max(720, footerY + messageLines.length * 32 + 76);
+  const height = Math.max(720, footerY + messageLines.length * messageLineHeight + 76);
   if (height > 4000) throw new Error('text-too-long');
-  const scale = kind === 'image' ? Math.min(2, 4096 / width, 4096 / height, Math.sqrt(6000000 / (width * height))) : Math.min(1, 1920 / width, 1080 / height);
+  const scale = gif ? Math.min(1, 1920 / width, 1600 / height, Math.sqrt(3000000 / (width * height))) : kind === 'image' ? Math.min(2, 4096 / width, 4096 / height, Math.sqrt(6000000 / (width * height))) : Math.min(1, 1920 / width, 1080 / height);
   canvas.width = Math.floor(width * scale / 2) * 2; canvas.height = Math.floor(height * scale / 2) * 2;
   const xOffset = (width - snapshot.boardWidth) / 2;
   const replay = replayPlan(snapshot);
@@ -57,7 +60,7 @@ export function createRenderer(snapshot, kind = 'image') {
     ctx.setTransform(canvas.width / width, 0, 0, canvas.height / height, 0, 0);
     ctx.fillStyle = '#f8f7fc'; ctx.fillRect(0, 0, width, height);
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#302c44'; ctx.font = `bold 30px ${FONT}`;
-    ctx.fillText('오늘은 누가 걸릴까?', width / 2, 42);
+    ctx.fillText(gif ? '사다리 타기' : '오늘은 누가 걸릴까?', width / 2, 42);
     ctx.font = `14px ${FONT}`; ctx.fillStyle = '#847196'; ctx.fillText(snapshot.reverse ? '결과 → 사람' : '사람 → 결과', width / 2, 79);
     function cards(texts, lines, y, h, selected, destination) {
       texts.forEach((text, i) => {
@@ -91,9 +94,9 @@ export function createRenderer(snapshot, kind = 'image') {
     ctx.restore();
     box(ctx, 32, footerY, width - 64, height - footerY - 24, frame.arrived ? '#fff7de' : '#f0ebfa');
     ctx.fillStyle = frame.arrived ? '#83591a' : '#746184'; ctx.font = `bold 20px ${FONT}`;
-    ctx.fillText(frame.arrived ? snapshot.reverse ? '찾았다!' : '짜잔!' : '두근두근, 출발!', width / 2, footerY + 25);
-    ctx.font = `bold 24px ${FONT}`;
-    if (frame.arrived) messageLines.forEach((part,i)=>ctx.fillText(part,width/2,footerY+58+i*32));
+    ctx.fillText(frame.arrived ? snapshot.reverse ? gif ? '🔎 찾았다!' : '찾았다!' : gif ? '✨ 짜잔!' : '짜잔!' : '두근두근, 출발!', width / 2, footerY + 25);
+    ctx.font = `bold ${messageSize}px ${FONT}`;
+    if (frame.arrived) messageLines.forEach((part,i)=>ctx.fillText(part,width/2,footerY+(gif ? 46+messageLineHeight/2 : 58)+i*messageLineHeight));
     return frame;
   }
   return { canvas, draw, replay, dispose(){canvas.width=canvas.height=1;} };

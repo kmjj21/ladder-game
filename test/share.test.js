@@ -16,7 +16,7 @@ test('파일 공유 지원·취소·활성화 만료·재시도',async()=>{
  for(const [name,outcome] of [['AbortError','cancelled'],['NotAllowedError','ready'],['Error','failed']]) {nav.share=async()=>{throw Object.assign(Error(),{name});};assert.equal(await shareFile(file,{nav,gesture:true}),outcome);}
 });
 
-test('공유 컨트롤: 양방향 이미지/영상·중복 endpoint·음향·기존 저장·중복 클릭·상태 보존',async()=>{
+test('공유 컨트롤: 양방향 이미지/GIF·중복 endpoint·영상 음향·기존 저장·중복 클릭·상태 보존',async()=>{
  const previous=Object.fromEntries(['document','window','navigator'].map(k=>[k,Object.getOwnPropertyDescriptor(globalThis,k)]));
  const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{hidden:false,disabled:false,download:'',textContent:'',clicks:0,pause(){},load(){},focus(){},setAttribute(){},removeAttribute(){},close(){this.open=false;},showModal(){this.open=true;},click(){this.clicks++;}});return nodes.get(id);};
  let files=[],captured=[],sounds=[],sound=true,hold=null;
@@ -25,18 +25,21 @@ test('공유 컨트롤: 양방향 이미지/영상·중복 endpoint·음향·기
  const nav={canShare:()=>true,share:async data=>files.push(data),userActivation:{isActive:true}};
  Object.defineProperty(globalThis,'navigator',{configurable:true,value:nav});
  try {
- const controller=createExportControls(()=>sound,{exportImage:async s=>{captured.push(s);if(hold)await hold;return new Blob(['png'],{type:'image/png'});},exportVideo:async(s,a)=>{captured.push(s);return {blob:new Blob(['video'],{type:'video/webm'}),extension:'webm',withAudio:a.enabled};},videoSupported:()=>true,prepareAudio:enabled=>{sounds.push(enabled);return{enabled};}});
+ const controller=createExportControls(()=>sound,{exportGif:async s=>{captured.push(s);return new Blob(['GIF89a'],{type:'image/gif'});},exportImage:async s=>{captured.push(s);if(hold)await hold;return new Blob(['png'],{type:'image/png'});},exportVideo:async(s,a)=>{captured.push(s);return {blob:new Blob(['video'],{type:'video/webm'}),extension:'webm',withAudio:a.enabled};},videoSupported:()=>true,prepareAudio:enabled=>{sounds.push(enabled);return{enabled};}});
  const ladder=generateLadder(8),data={ladder,rhythm:createRhythm(ladder),names:Array.from({length:8},(_,i)=>'이름'+i),results:Array(8).fill('통과'),index:4,reverse:false};
- for(const reverse of [false,true]) for(const kind of ['image','video']) {
+ for(const reverse of [false,true]) for(const kind of ['image','gif']) {
   data.reverse=reverse;const before=JSON.stringify(data);controller.set(data);
   node('result-share').onclick();assert.equal(node('share-choice').open,true);
   await node('share-'+kind).onclick();assert.deepEqual(captured.at(-1),snapshotResult(data));assert.equal(JSON.stringify(data),before);
-  assert.equal(files.at(-1).files[0].type,kind==='image'?'image/png':'video/webm');
+  assert.equal(files.at(-1).files[0].type,kind==='image'?'image/png':'image/gif');
   assert.equal(node('export-download').clicks,0);
  }
- sound=false;await node('share-video').onclick();assert.deepEqual(sounds,[true,true,false]);
+ assert.deepEqual(sounds,[],'GIF 공유는 오디오를 생성하지 않음');
+ for(const reverse of [false,true]) {data.reverse=reverse;controller.set(data);await node('export-video').onclick();assert.deepEqual(captured.at(-1),snapshotResult(data));}
+ sound=false;await node('export-video').onclick();assert.deepEqual(sounds,[true,true,false]);node('export-download').clicks=0;
  nav.share=undefined;await node('share-image').onclick();assert.equal(node('export-download').clicks,1);
- nav.share=async()=>{};nav.canShare=()=>false;await node('share-video').onclick();assert.equal(node('export-download').clicks,2);
+ nav.share=async()=>{};nav.canShare=()=>false;await node('share-gif').onclick();assert.equal(node('export-download').clicks,2);
+ assert.equal(node('export-preview').open,true);assert.equal(node('export-download').textContent,'GIF 저장');
  for(const kind of ['image','video'])await node('export-'+kind).onclick();assert.equal(node('export-download').clicks,4);
  let release;hold=new Promise(resolve=>release=resolve);const count=captured.length;
  const pending=node('share-image').onclick();assert.equal(node('result-share').disabled,true);await node('share-image').onclick();assert.equal(captured.length,count+1);release();await pending;hold=null;
