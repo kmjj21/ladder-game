@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { createGame, restoreGame, shuffleSlots, slotLabels } from '../src/game-state.js';
 import { trace } from '../src/ladder.js';
 import { snapshotResult, replayPlan, replayFrame } from '../src/export/model.js';
-import { read, save } from '../src/storage.js';
 
 for (const count of [2, 8, 12, 20]) test(`${count}명 2,000회: 셔플 슬롯·중복·양방향·export·저장 복구`, () => {
   const names = Array.from({length: count}, (_, i) => `참가자${i}`), inputResults = names.map((_, i) => i % 3 ? '통과' : '당번');
@@ -38,20 +37,6 @@ test('Fisher-Yates는 입력을 보존하고 인덱스별 중복 슬롯을 유�
   const orders = new Set(), ladders = new Set();
   for (let i=0;i<30;i++) { const game=createGame(['가','나','다','라'],values); orders.add(JSON.stringify(game.resultOrder)); ladders.add(JSON.stringify(game.ladder)); }
   assert.ok(orders.size>1); assert.ok(ladders.size>1);
-});
-
-test('localStorage 왕복은 배치·경로·진행·소리와 입력 원본을 보존', () => {
-  const previous=globalThis.localStorage; let stored;
-  globalThis.localStorage={setItem:(_,v)=>{stored=v;},getItem:()=>stored};
-  try {
-    const names=['가','나'],results=['당번','통과'],game=createGame(names,results);
-    game.revealed=[[0,trace(game.ladder,0).end]];game.lastRoute={index:0,reverse:false};
-    for(const sound of [true,false]) {
-      assert.equal(save({names,results,sound,game}),true);
-      const cached=read();assert.equal(cached.sound,sound);assert.deepEqual(cached.results,results);
-      assert.deepEqual(restoreGame(cached.game,names,results),game);
-    }
-  } finally {globalThis.localStorage=previous;}
 });
 
 test('손상되거나 현재 입력과 다른 저장 게임은 복구하지 않음', () => {

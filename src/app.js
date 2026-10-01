@@ -6,22 +6,17 @@ import { createPairedEditors } from './paired-editor.js';
 import { choose } from './dialog.js';
 import { makeFollower } from './follow.js';
 import { createLayout } from './layout.js';
-import { createGame, restoreGame, slotLabels } from './game-state.js';
+import { createGame, slotLabels } from './game-state.js';
 import { createExportControls } from './export/controls.js';
 
 const $ = id => document.getElementById(id);
 const cached = read(), reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-const initialInputs = {
-  ...cached,
-  names: cached.names ?? ['', ''],
-  results: cached.results ?? ['', '']
-};
+const initialInputs = { names: ['', ''], results: ['', ''] };
 let sound = cached.sound !== false, ladder, rhythm, layout, names = [], results = [], busy = false, prompting = false;
 let activeGame = null, lastRoute = null, pendingResize = false;
 const revealed = new Map();
 function persist() {
-  const game = activeGame ? { ...activeGame, revealed: [...revealed], lastRoute } : null;
-  $('storage-note').textContent = save({ ...inputs.serialize(), sound, game }) ? '✓ 이 기기에 자동 저장됨' : '자동 저장이 안 돼요. 입력 내용을 따로 복사해주세요.';
+  $('storage-note').textContent = save({ sound }) ? '새로고침하면 입력 내용이 초기화돼요.' : '새로고침하면 입력 내용이 초기화돼요. 효과음 설정은 저장할 수 없어요.';
 }
 function validate() {
   const { names: a, results: b } = inputs.state;
@@ -223,18 +218,4 @@ $('new').onclick = async () => {
   if (answer === 'clear') { inputs.clear(); edit(); }
 };
 setSoundEnabled(sound); syncSound();
-const restored = restoreGame(cached.game, inputs.state.names.map(s => s.trim()), inputs.state.results.map(s => s.trim()));
-if (restored) {
-  activeGame = restored; ({ ladder, rhythm, names, lastRoute } = restored); results = slotLabels(restored);
-  for (const [start, end] of restored.revealed) revealed.set(start, end);
-  $('setup').hidden = true; $('game').hidden = false; document.body.classList.add('playing'); draw(false);
-  if (lastRoute) {
-    const { index, reverse } = lastRoute, end = trace(ladder, index, reverse).end;
-    $('announcement').textContent = reverse ? '찾았다! ' + results[index] + ' → ' + names[end] + '!' : '짜잔! ' + names[index] + ' → ' + results[end] + '!';
-    $('announcement').classList.add('arrived'); media.set({ladder,rhythm,names,results,index,reverse});
-    $(reverse ? 'bottom-labels' : 'top-labels').children[index].classList.add('selected');
-    $(reverse ? 'top-labels' : 'bottom-labels').children[end].classList.add('selected');
-  }
-}
 validate();
-

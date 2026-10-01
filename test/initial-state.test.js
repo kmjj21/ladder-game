@@ -34,73 +34,64 @@ async function boot(saved) {
   }
   for(const side of ['names','results'])nodes[side+'-editor'].append(nodes[side]);
   for(const name of ['sound-wave','sound-slash']){const node=new Element('path');node.classList.add(name);nodes.sound.append(node);}
-  let stored=saved===undefined?null:JSON.stringify(saved);
+  const stored=new Map(saved===undefined?[]:[['ladder-game:v1',JSON.stringify(saved)]]);
   const globals={
     document:{getElementById:id=>nodes[id],createElement:tag=>new Element(tag),createElementNS:(_,tag)=>new Element(tag),body:new Element('body'),addEventListener(){}},
     window:{addEventListener(){},scrollTo(){}},
-    localStorage:{getItem:()=>stored,setItem:(_key,value)=>{stored=value;}},
+    localStorage:{getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value),removeItem:key=>stored.delete(key)},
     matchMedia:()=>({matches:true}),ResizeObserver:class{observe(){}},innerWidth:1280,
   };
   for(const [key,value] of Object.entries(globals))Object.defineProperty(globalThis,key,{configurable:true,writable:true,value});
   const restore=()=>{for(const [key,descriptor] of Object.entries(originals))if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];};
   try{await import(`../src/app.js?initial-state=${++serial}`);}catch(error){restore();throw error;}
-  return {nodes,restore,read:()=>JSON.parse(stored),rows:side=>nodes[side+'-editor'].querySelectorAll('input')};
+  return {nodes,restore,read:()=>JSON.parse(stored.get('ladder-game:preferences:v1')||'null'),legacy:()=>stored.get('ladder-game:v1'),rows:side=>nodes[side+'-editor'].querySelectorAll('input')};
 }
 const empty={names:['',''],results:['','']};
 const user={names:['민수','영희','지영'],results:['통과','통과','당번'],sound:false};
 function values(f){return {names:f.rows('names').map(n=>n.value),results:f.rows('results').map(n=>n.value)};}
 function input(f,side,index,value){const node=f.rows(side)[index];node.value=value;node.oninput({isComposing:true});}
 
-test('A: no localStorage starts with exactly two empty participant/result values',async()=>{
-  const f=await boot();try{assert.deepEqual(values(f),empty);assert.equal(f.read().game,null);}finally{f.restore();}
+function fill(f,count=2) {
+  while(f.rows('names').length<count)f.nodes['names-editor'].children.find(n=>n.className==='add-entry').onclick();
+  for(let i=0;i<count;i++){input(f,'names',i,'참가자'+i);input(f,'results',i,'결과'+i);}
+}
+test('A: first load starts with empty 2+2 and disabled start',async()=>{
+ const f=await boot();try{assert.deepEqual(values(f),empty);assert.ok(f.nodes.create.disabled);}finally{f.restore();}
 });
-test('B: empty row and bulk inputs display the requested placeholders',async()=>{
-  const f=await boot();try{for(const [side,label] of [['names','이름을 입력하세요'],['results','결과를 입력하세요']]) {
-    assert.equal(f.nodes[side].placeholder,label);assert.ok(f.rows(side).every(n=>n.placeholder===label));
-  }}finally{f.restore();}
+test('B: placeholders are displayed but never values or saved input',async()=>{
+ const f=await boot();try{for(const [side,label] of [['names','이름을 입력하세요'],['results','결과를 입력하세요']]) {
+ assert.equal(f.nodes[side].placeholder,label);assert.ok(f.rows(side).every(n=>n.placeholder===label&&n.value===''));
+ }assert.deepEqual(f.read(),{sound:true});assert.equal(f.legacy(),undefined);}finally{f.restore();}
 });
-test('C: placeholders are never persisted as user input',async()=>{
-  const f=await boot();try{assert.deepEqual({names:f.read().names,results:f.read().results},empty);assert.ok(f.nodes.create.disabled);}finally{f.restore();}
+for(const count of [2,8,20])test(`refresh after ${count} entries starts empty; only sound survives`,async()=>{
+ const f=await boot({sound:false});let preferences;
+ try{fill(f,count);assert.equal(f.nodes.create.disabled,false);f.nodes.create.onclick();f.nodes.all.onclick();preferences=f.read();assert.deepEqual(preferences,{sound:false});assert.equal(f.legacy(),undefined);}finally{f.restore();}
+ const next=await boot(preferences);try{assert.deepEqual(values(next),empty);assert.equal(next.nodes.game.hidden,true);assert.equal(next.nodes.sound.attributes['aria-pressed'],'false');}finally{next.restore();}
 });
-test('D: saved arrays, legacy strings and exact former sample values are preserved',async()=>{
-  const samples={names:['민수','영희','지영','준호','수빈','지우','현우','서연'],results:['간식 사기','통과','통과','오늘의 당번','통과','통과','통과','면제']};
-  for(const saved of [user,{names:user.names.join('\n'),results:user.results.join('\n')},samples]) {
-    const f=await boot(saved);try{
-      const expected={names:Array.isArray(saved.names)?saved.names:saved.names.split('\n'),results:Array.isArray(saved.results)?saved.results:saved.results.split('\n')};
-      assert.deepEqual(values(f),expected);assert.deepEqual({names:f.read().names,results:f.read().results},expected);
-    }finally{f.restore();}
-  }
+test('old sample, user names, drafts and complete game never restore, even after queued work',async()=>{
+ const {createGame}=await import('../src/game-state.js');
+ const samples={names:['민수','영희','지영','준호','수빈','지우','현우','서연'],results:['간식 사기','통과','통과','오늘의 당번','통과','통과','통과','면제']};
+ for(const saved of [user,samples,{...samples,names:samples.names.join('\n')},{...user,game:createGame(user.names,user.results),inputDrafts:{names:'옛 입력'}}]) {
+ const f=await boot(saved);try{await new Promise(resolve=>setTimeout(resolve,10));assert.deepEqual(values(f),empty);assert.equal(f.nodes.game.hidden,true);assert.equal(f.legacy(),undefined);}finally{f.restore();}
+ }
 });
-test('E: new-game cancel preserves data; confirm clears inputs and persisted game',async()=>{
-  const f=await boot(user);let saved;
-  try {
-    f.nodes.create.onclick();f.nodes.all.onclick();const before=f.read();assert.equal(before.game.revealed.length,3);
-    let pending=f.nodes.new.onclick();assert.equal(f.nodes['choice-actions'].children.length,1);
-    f.nodes['choice-cancel'].onclick();await pending;assert.deepEqual(f.read(),before);
-    pending=f.nodes.new.onclick();f.nodes['choice-actions'].firstElementChild.onclick();await pending;
-    assert.deepEqual(values(f),empty);assert.equal(f.read().game,null);assert.equal(f.nodes.setup.hidden,false);assert.equal(f.nodes.game.hidden,true);assert.equal(f.nodes.create.disabled,true);
-    saved=f.read();
-    for(const side of ['names','results'])for(let i=0;i<2;i++)input(f,side,i,side==='names'?'새 이름'+i:'새 결과'+i);
-    f.nodes.create.onclick();assert.deepEqual(f.read().game.revealed,[]);assert.equal(f.read().game.lastRoute,null);assert.equal(f.read().game.resultOrder.length,2);
-  }finally{f.restore();}
-  const restored=await boot(saved);try{assert.deepEqual(values(restored),empty);assert.equal(restored.nodes.game.hidden,true);}finally{restored.restore();}
+test('new game cancel preserves inputs; confirm resets empty 2+2',async()=>{
+ const f=await boot();try{fill(f,8);f.nodes.create.onclick();f.nodes.all.onclick();const before=values(f);
+ let pending=f.nodes.new.onclick();f.nodes['choice-cancel'].onclick();await pending;assert.deepEqual(values(f),before);
+ pending=f.nodes.new.onclick();f.nodes['choice-actions'].firstElementChild.onclick();await pending;
+ assert.deepEqual(values(f),empty);assert.equal(f.nodes.game.hidden,true);assert.ok(f.nodes.create.disabled);
+ fill(f);f.nodes.create.onclick();assert.equal(f.nodes.progress.textContent,'확인 0 / 2');
+ }finally{f.restore();}
 });
-test('F: shuffle preserves names/results and clears revealed game progress',async()=>{
-  const f=await boot(user);try{
-    f.nodes.create.onclick();f.nodes.all.onclick();const pending=f.nodes.shuffle.onclick();f.nodes['choice-actions'].firstElementChild.onclick();await pending;
-    assert.deepEqual(values(f),{names:user.names,results:user.results});assert.deepEqual(f.read().names,user.names);assert.deepEqual(f.read().results,user.results);
-    assert.deepEqual(f.read().game.revealed,[]);assert.equal(f.read().game.lastRoute,null);
-  }finally{f.restore();}
+test('shuffle preserves inputs and resets revealed progress',async()=>{
+ const f=await boot();try{fill(f,8);const before=values(f);f.nodes.create.onclick();f.nodes.all.onclick();
+ const pending=f.nodes.shuffle.onclick();f.nodes['choice-actions'].firstElementChild.onclick();await pending;
+ assert.deepEqual(values(f),before);assert.equal(f.nodes.progress.textContent,'확인 0 / 8');
+ }finally{f.restore();}
 });
-test('G: empty inputs cannot start even if the start handler is invoked directly',async()=>{
-  const f=await boot();try{assert.equal(f.nodes.create.disabled,true);f.nodes.create.onclick();assert.equal(f.nodes.game.hidden,true);assert.equal(f.read().game,null);}finally{f.restore();}
-});
-test('H: filling all two names/results enables start; blank synchronized slot disables it',async()=>{
-  const f=await boot();try{
-    input(f,'names',0,'민수');input(f,'names',1,'영희');input(f,'results',0,'통과');assert.equal(f.nodes.create.disabled,true);
-    input(f,'results',1,'당번');assert.equal(f.nodes.create.disabled,false);
-    f.nodes['names-editor'].children.find(n=>n.className==='add-entry').onclick();
-    assert.equal(f.nodes.create.disabled,true);assert.deepEqual(values(f),{names:['민수','영희',''],results:['통과','당번','']});
-    input(f,'names',2,'지영');input(f,'results',2,'간식');assert.equal(f.nodes.create.disabled,false);f.nodes.create.onclick();assert.equal(f.nodes.game.hidden,false);
-  }finally{f.restore();}
+test('empty cannot start; complete input enables; added empty slot disables',async()=>{
+ const f=await boot();try{f.nodes.create.onclick();assert.equal(f.nodes.game.hidden,true);fill(f);assert.equal(f.nodes.create.disabled,false);
+ f.nodes['names-editor'].children.find(n=>n.className==='add-entry').onclick();assert.ok(f.nodes.create.disabled);assert.deepEqual(values(f).names,['참가자0','참가자1','']);
+ input(f,'names',2,'지영');input(f,'results',2,'간식');assert.equal(f.nodes.create.disabled,false);
+ }finally{f.restore();}
 });

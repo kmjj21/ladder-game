@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { migrateInputs, planChange, inputProblem, parseList } from '../src/input-state.js';
-import { read, save } from '../src/storage.js';
 const initial = (n = 10) => ({ names: Array.from({length:n},(_,i)=>'이름 '+(i+1)), results:Array.from({length:n},(_,i)=>'결과 '+(i+1)) });
 for (const side of ['names','results']) {
   const other = side === 'names' ? 'results' : 'names';
@@ -43,22 +42,16 @@ test('내용만 지우면 슬롯은 유지하고 미입력 검사', () => {
   assert.equal(plan.state.names.length,10); assert.equal(plan.state.results.length,10);
   assert.match(inputProblem(plan.state),/결과 2개만 입력하면 출발/);
 });
-test('구버전 localStorage 15/20, 20/15 모두 비파괴 복원', () => {
-  const original=globalThis.localStorage;
-  let stored;
-  globalThis.localStorage={getItem:()=>stored,setItem:(_key,value)=>{stored=value;}};
-  try {
-    for(const reverse of [false,true]) {
-      const old={names:initial(reverse?20:15).names.join('\n'),results:initial(reverse?15:20).results.join('\n'),sound:false};
-      assert.equal(save(old),true);
-      const restored=migrateInputs(read());
-      assert.equal(restored.names.length,20); assert.equal(restored.results.length,20);
-      assert.deepEqual(restored.names.slice(0,reverse?20:15),parseList(old.names));
-      assert.deepEqual(restored.results.slice(0,reverse?15:20),parseList(old.results));
-      assert.deepEqual(restored[reverse?'results':'names'].slice(15),Array(5).fill(''));
-      save({...restored,sound:false}); assert.deepEqual(migrateInputs(read()),restored);
-    }
-  } finally { globalThis.localStorage=original; }
+test('입력 배열 정규화 15/20, 20/15 모두 비파괴 처리', () => {
+  for(const reverse of [false,true]) {
+    const source={names:initial(reverse?20:15).names.join('\n'),results:initial(reverse?15:20).results.join('\n')};
+    const state=migrateInputs(source);
+    assert.equal(state.names.length,20);assert.equal(state.results.length,20);
+    assert.deepEqual(state.names.slice(0,reverse?20:15),parseList(source.names));
+    assert.deepEqual(state.results.slice(0,reverse?15:20),parseList(source.results));
+    assert.deepEqual(state[reverse?'results':'names'].slice(15),Array(5).fill(''));
+    assert.deepEqual(migrateInputs(state),state);
+  }
 });
 test('구버전 20명 초과도 데이터 보존, 빈 배열은 두 슬롯', () => {
   const state=migrateInputs({names:initial(23).names,results:['당번']});
