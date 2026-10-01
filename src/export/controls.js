@@ -17,7 +17,7 @@ export function createExportControls(getSound, dependencies={}) {
     if(url) URL.revokeObjectURL(url);url=null;currentFile=null;currentKind=null;
     $('export-ready').hidden=true;$('export-preview').open=false;
   }
-  function sync() {root.hidden=!snapshot;for(const id of ['export-image','export-video','result-share','export-share','export-dismiss']) $(id).disabled=generating||sharing;root.setAttribute('aria-busy',String(generating||sharing));}
+  function sync() {root.hidden=!snapshot;for(const id of ['export-image','export-video','result-share','export-share','export-dismiss']) $(id).disabled=generating||sharing||!snapshot;root.setAttribute('aria-busy',String(generating||sharing));}
   function clear() {$('share-choice').close();focusShare=false;revision++;aborter?.abort();aborter=null;snapshot=null;generating=false;release();$('export-status').textContent='';sync();}
   async function deliver(blob,extension,kind,silentFallback,intent) {
     release();url=URL.createObjectURL(blob);currentKind=kind;
@@ -52,7 +52,7 @@ export function createExportControls(getSound, dependencies={}) {
       if(version===revision && error.name!=='AbortError') $('export-status').textContent=error.message==='background'?'화면을 열어 둔 채 다시 저장해주세요.':'저장하지 못했어요. 다시 시도해주세요. 결과 이미지는 따로 저장할 수 있어요.';
     } finally {if(version===revision){generating=false;aborter=null;sync();if(focusShare){focusShare=false;$('export-share').focus();}}}
   }
-  $('export-image').onclick=()=>save('image');$('export-video').onclick=()=>save('video');
+  $('export-image').onclick=()=>save('image');$('export-video').onclick=()=>{$('share-choice').close();return save('video');};
   async function sendShare(gesture) {
     if(sharing) return;
     const version=revision;sharing=true;sync();

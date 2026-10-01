@@ -45,6 +45,7 @@ export function createPairedEditors(saved, onChange, choose, makeEditor = create
     problem(){return pending?'삭제 여부를 선택해주세요.':Object.values(drafts).some(d=>d!==null)?'최대 20명까지 사용할 수 있어요. 입력 내용을 수정해주세요.':inputProblem(state);},
     serialize(){return {inputVersion:2,names:[...state.names],results:[...state.results],inputDrafts:{...drafts}};},
     focus(){editors.names.focus();},
+    load(saved){state=migrateInputs(saved);for(const side of ['names','results']){drafts[side]=null;editors[side].clear();editors[side].set(state[side]);}onChange();},
     clear(){state={names:['',''],results:['','']};for(const side of ['names','results']){drafts[side]=null;editors[side].clear();editors[side].set(state[side]);}onChange();},
   };
 }

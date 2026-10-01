@@ -1,3 +1,5 @@
+import { renderSummaryBoard } from './summary-board.js';
+import { createSavedGamesUI } from './saved-games-ui.js';
 import { COLUMN, trace, pathData } from './ladder.js';
 import { animate } from './animation.js';
 import { unlock, tone, setSoundEnabled } from './sound.js';
@@ -6,7 +8,7 @@ import { createPairedEditors } from './paired-editor.js';
 import { choose } from './dialog.js';
 import { makeFollower } from './follow.js';
 import { createLayout } from './layout.js';
-import { createGame, slotLabels } from './game-state.js';
+import { createGame, restoreGame, slotLabels } from './game-state.js';
 import { createExportControls } from './export/controls.js';
 
 const $ = id => document.getElementById(id);
@@ -198,7 +200,9 @@ $('all').onclick = () => {
     person.textContent = (start+1)+'. '+name; arrow.textContent = '→'; arrow.className = 'result-arrow'; result.textContent = results[end];
     item.append(person,arrow,result); $('summary-list').append(item);
   });
-  updateLabels(); persist(); $('summary').hidden = false; $('play-area').hidden = true; $('all').hidden = true;
+  renderSummaryBoard({source:$('ladder'),layout,ladder,names,results},$('summary-board'));
+  $('summary-scroll').scrollLeft=0;
+  updateLabels(); persist(); $('summary').hidden = false; $('play-area').hidden = true; $('all').hidden = false;
   $('announcement').textContent = '오늘의 주인공을 모두 찾았어요.'; $('announcement').classList.remove('arrived');
   $('summary-title').focus(); window.scrollTo({top:0,behavior:'instant'});
 };
@@ -215,7 +219,27 @@ $('new').onclick = async () => {
   const answer = await choose('새 게임을 시작할까요?','입력한 이름과 결과를 지우고 빈 2칸씩으로 시작해요.',[
     {label:'모두 지우고 새로 시작',value:'clear'}]);
   prompting = false;
-  if (answer === 'clear') { inputs.clear(); edit(); }
+  if (answer === 'clear') { savedGames.clearSource(); inputs.clear(); edit(); }
 };
+const savedGames = createSavedGamesUI({
+  available: () => !busy && !prompting,
+  capture: () => activeGame ? {...activeGame, revealed:[...revealed], lastRoute} : null,
+  restore: snapshot => {
+    const game = restoreGame(snapshot, snapshot.names, snapshot.inputResults);
+    if (!game) throw new Error('저장된 게임을 불러올 수 없어요.');
+    inputs.load({names:game.names, results:game.inputResults});
+    activeGame=game;({ladder,rhythm,names,lastRoute}=game);results=slotLabels(game);
+    revealed.clear();for(const [start,end] of game.revealed)revealed.set(start,end);
+    $('setup').hidden=true;$('game').hidden=false;document.body.classList.add('playing');draw(false);
+    if(lastRoute){
+      const {index,reverse}=lastRoute,end=trace(ladder,index,reverse).end;
+      $('announcement').textContent=reverse?'찾았다! '+results[index]+' → '+names[end]+'!':'짜잔! '+names[index]+' → '+results[end]+'!';
+      $('announcement').classList.add('arrived');media.set({ladder,rhythm,names,results,index,reverse});
+      $(reverse?'bottom-labels':'top-labels').children[index].classList.add('selected');
+      $(reverse?'top-labels':'bottom-labels').children[end].classList.add('selected');
+    }
+    window.scrollTo({top:0,behavior:'instant'});focusStart();
+  }
+});
 setSoundEnabled(sound); syncSound();
 validate();
